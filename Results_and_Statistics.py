@@ -7,10 +7,10 @@ import matplotlib.pyplot as plt
 import os
 
 # Get all image files in the directory
-image_directory = 'D:/Study/PJ.M/Mapping Lerins/2023 09 ZONE 2'
+image_directory = 'Mapping Lerins/2023 09 ZONE 2'
 image_paths = [os.path.join(image_directory, file) for file in os.listdir(image_directory) if file.lower().endswith(('.jpg', '.jpeg', '.png'))]
 
-model_path = 'D:/Study/PJ.M/Mooring_Project/code/runs/detect/train/weights/last.pt'
+model_path = 'Mooring_Project/code/runs/detect/train/weights/last.pt'
 mob_counts=mb_counts=sb_counts = 0
 
 boat_areas = []
