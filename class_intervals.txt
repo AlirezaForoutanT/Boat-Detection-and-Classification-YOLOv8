@@ -1,4 +1,0 @@
-Class 1: 0 - 11
-Class 2: 11 - 19
-Class 3: 19 - 36
-Class 4: 36 - inf
