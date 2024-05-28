@@ -1,6 +1,6 @@
 # Mooring Heatmap
 
-Here is the dynamic heatmap of the mooring project using ReactJS.
+Dynamic heatmap base on the are of detected boats using ReactJS.
 
 ## Run / Build the web page
 
