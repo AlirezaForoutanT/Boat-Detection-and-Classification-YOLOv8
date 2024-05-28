@@ -1,0 +1,23 @@
+/* Add this to your CSS file or style tag */
+.info.legend {
+  background: white;
+  padding: 10px;
+  border: 1px solid #ccc;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+  border-radius: 5px;
+  color: black;
+  text-align: left;
+}
+.info.legend div {
+  display: flex;
+  align-items: center;
+  justify-content: left;
+  padding: 1px;
+}
+
+.info.legend i {
+  width: 20px;
+  height: 20px;
+  margin-right: 5px;
+  display: inline-block;
+}
