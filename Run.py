@@ -5,10 +5,16 @@ import numpy as np
 import piexif
 import matplotlib.pyplot as plt
 import sys
-np.set_printoptions(threshold=sys.maxsize)
+import pandas as pd
 
-image_path = 'D:/Study/PJ.M/Mapping Lerins/Zone 1 6pm 15.JPG'
+#np.set_printoptions(threshold=sys.maxsize)
+
+df_boats = pd.DataFrame(columns=['Model', 'Area_m2', 'Boat Number'])
+
+image_path = 'Mapping Lerins/Zone 1 6pm 16.JPG'
 model_path = 'runs/detect/train/weights/last.pt'
+BoatsDataset = pd.read_csv("Boats_With_Area_mm2.csv")
+Boats = pd.read_csv("boats.csv")
 
 # Load the model1
 model = YOLO(model_path)
@@ -19,6 +25,7 @@ xyxy = res.boxes.xyxy
 
 boat_areas = []
 boat_category= []
+boat_class= []
 
 
 def load_image(image_path):
@@ -50,20 +57,21 @@ def read_class_intervals_from_file(file_path):
 
     return class_intervals
 
-
 def adjust_parameters_for_brightness(gray_roi):
     # Calculate average brightness
     brightness = np.mean(gray_roi)
-    # print(brightness)
+    #print(brightness)
     
     # Adjust parameters based on brightness
-    if brightness > 128:  # Assuming 0-255 scale, 128 as a mid-point
-        kernel_size = (5, 5)  # Larger kernel for brighter regions
-        threshold_val = 170  # Higher threshold for bright areas
+    if  120 < brightness< 190:  
+        kernel_size = (5, 5) 
+        threshold_val = 170 
+    elif brightness <= 120:
+        kernel_size = (3, 3) 
+        threshold_val = 100 
     else:
-        kernel_size = (3, 3)  # Smaller kernel for darker regions
-        threshold_val = 100  # Lower threshold for dark areas
-    
+        kernel_size = (2, 2)
+        threshold_val = 220 
     return kernel_size, threshold_val
 
 
@@ -89,13 +97,13 @@ def Morphology(x_min, y_min, x_max, y_max, img):
     mask = cv2.inRange(eroded_roi, threshold , 255)
 
 
-    # # Display the resulting image
+    # Display the resulting image
     # cv2.imshow('opening', opening)
     # cv2.waitKey(0)
     # # Display the resulting image
-    # cv2.imshow('eroded_roi', eroded_roi)
-    # cv2.waitKey(0)
-    # # Display the resulting image
+    # # cv2.imshow('eroded_roi', eroded_roi)
+    # # cv2.waitKey(0)
+    # # # Display the resulting image
     # cv2.imshow('mask', mask)
     # cv2.waitKey(0)
 
@@ -105,26 +113,20 @@ def Morphology(x_min, y_min, x_max, y_max, img):
 
 def Area_pixels(yolo_coordinates, imgsize, altitude, sensor_size, focal_length, img):
     x_min, y_min, x_max, y_max = map(int, yolo_coordinates)
-    
-    res =  Morphology(x_min, y_min, x_max, y_max, img)
-    # print (res)
 
+    res =  Morphology(x_min, y_min, x_max, y_max, img)
 
     # Calculating boat area
-    boat_area_pixel = np.count_nonzero(res)   
-    # print ("******************************",boat_area_pixel)
+    boat_area_pixel = np.count_nonzero(res)  
 
-    gsd_x = (sensor_size[0] * altitude) / (focal_length * imgsize[0])
-    gsd_y = (sensor_size[1] * altitude) / (focal_length * imgsize[1])
+    Pixel_Size_X=sensor_size[0]/imgsize[0]
+    Pixel_Size_Y=sensor_size[1]/imgsize[1]
+    Average_Pixel_Size=(Pixel_Size_X+Pixel_Size_Y)/2
 
-    y = x = np.sqrt(boat_area_pixel)
+    gsd = Average_Pixel_Size * altitude / focal_length 
    
-
     # Convert pixel coordinates to real-world coordinates
-    real_width = x * gsd_x
-    real_height = y * gsd_y
-    eara = real_width * real_height
-    # print ("******************************",int(eara))
+    eara = boat_area_pixel * (gsd ** 2) 
 
     return int(eara)
 
@@ -151,12 +153,12 @@ def Area_boxes(yolo_coordinates, imgsize, altitude, sensor_size, focal_length):
 def visualization():
     count=1
     im_array = results[0].plot(conf=True, labels=True, font_size=5, line_width=5)  # Initialize with the first image
-    print("\nArea of detected boats:") 
+    print("\nDetected boats:") 
     
     for box in xyxy:
         x_min, y_min, x_max, y_max = box
-        print("   Boat", count, "area:", int(boat_areas[count-1])) 
-            
+        #print("   Boat", count, "area:", int(boat_areas[count-1])) 
+    
         boat_number = f'({count}):'        
         boat_size = f'{int(boat_areas[count-1])} '
         stars = '*' * boat_category[count-1]
@@ -180,9 +182,15 @@ def plots():
     for r in results:       
         for box in r.boxes:
             class_id = box.cls
-            if class_id==0:mb_counts+=1
-            elif class_id==2:sb_counts+=1
-            else: mob_counts+=1
+            if class_id==0:
+                mb_counts+=1
+                boat_class.append("Mootor boat")
+            elif class_id==2:
+                sb_counts+=1
+                boat_class.append("Sailing boat")
+            else:
+                mob_counts+=1
+                boat_class.append("Moving boat")
             
     # Calculate the boat counts for each class
     boat_counts = [len(class_averages[i]) for i in range(len(class_intervals) - 1)]
@@ -274,6 +282,45 @@ def Set_thresholds():
     print(f"Class 4: {int(percentile_75)}+ \n")
     return class_intervals
 
+def recommend_models_based_on_area(BoatsDataset, Boats):
+    all_recommendations = []  # List to store all recommendations
+
+    for index, row in Boats.iterrows():
+        # Calculate ±2% range of the boat's area
+        area_min = row['Area_m2'] * 0.98  # 98% for -2%
+        area_max = row['Area_m2'] * 1.02  # 102% for +2%
+        print("* Boat number:", row['Unnamed: 0'], "| Type:", row['model'], "| Area:", row['Area_m2'])
+
+        # Filter DataFrame for models within the target area range, excluding the current boat
+        possible_models = BoatsDataset[(BoatsDataset['Area_m2'] >= area_min) & (BoatsDataset['Area_m2'] <= area_max)]
+
+        # Append possible models to the all_recommendations list
+        for _, pm in possible_models.iterrows():
+            recommendation = {
+                'Original Boat ID': row['Unnamed: 0'],
+                'Original Model': row['model'],
+                'Original Area': row['Area_m2'],
+                'Recommended Model': pm['model'],
+                'Recommended Type': pm['type'],
+                'Recommended Area': pm['Area_m2'],
+                'Area Difference': abs(row['Area_m2'] - pm['Area_m2'])
+            }
+            all_recommendations.append(recommendation)
+
+        # Print the possible models for the current boat
+        print("Possible Models: ")
+        for pm in possible_models.itertuples():
+            print(f"{pm.model} ({pm.type}) - Area: {pm.Area_m2:.2f} mm^2")
+        print()  # This adds a newline for better readability
+
+    # Convert the list of recommendations to a DataFrame
+    recommendations_df = pd.DataFrame(all_recommendations)
+
+    # Save the recommendations to a CSV file
+    recommendations_df.to_csv('recommended_boats.csv', index=False)
+
+    return recommendations_df
+
 
 if __name__ == '__main__':
     img_array, imgsize, focal_length, altitude, sensor_size= load_image(image_path)
@@ -307,9 +354,18 @@ if __name__ == '__main__':
                 break     
     
         
+
     visualization()
     plots()
-   
+
+    df_boats = pd.DataFrame({ 'model': boat_class,'Area_m2': boat_areas})
+    df_boats.index = range(1, len(df_boats) + 1)
+    df_boats.to_csv('boats.csv', index=True)
+    print(df_boats)
+
+    chois=input('\nRecomended boats?(Y/N) ')
+    if(chois =='Y' or chois=='y'): recommendations = recommend_models_based_on_area(BoatsDataset,Boats)
+
 
 
 
