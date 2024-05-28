@@ -15,5 +15,4 @@ npm run build
 ```
 
 ## Credits
-
-Originally made by **[Louis Vraie](https://github.com/LouisVraie/)** for a multidisciplinary research project at **Côte d'Azur University, France**
+Developed based on the original work of **[Louis Vraie](https://github.com/LouisVraie/)** for a multidisciplinary research project at Côte d'Azur University, France
